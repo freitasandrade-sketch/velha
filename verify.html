@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Ultimate Tic Tac Toe — Hidden Mode</title>
+<style>
+    body {
+        background: #111;
+        color: #eee;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    #smallBoardContainer {
+        display: none;
+    }
+
+    .smallBoard {
+        display: grid;
+        grid-template-columns: repeat(3, 60px);
+        gap: 5px;
+        padding: 10px;
+        background: #333;
+        border-radius: 8px;
+    }
+
+    .cell {
+        width: 60px;
+        height: 60px;
+        background: #222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        cursor: pointer;
+        border-radius: 6px;
+    }
+
+    .cell:hover {
+        background: #444;
+    }
+
+    .disabled {
+        pointer-events: none;
+        opacity: 0.3;
+    }
+
+    #bigBoardWrapper {
+        display: none;
+        margin-top: 40px;
+    }
+
+    #bigBoard {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .bigCell {
+        width: 80px;
+        height: 80px;
+        background: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        border-radius: 6px;
+    }
+
+</style>
+</head>
+<body>
+
+<h2>Ultimate Tic Tac Toe (modo oculto)</h2>
+<div id="playerInfo"></div>
+<div id="currentBoardInfo"></div>
+
+<div id="smallBoardContainer">
+    <div id="smallBoard" class="smallBoard"></div>
+</div>
+
+<div id="bigBoardWrapper">
+    <h3>Resultado do Tabuleiro Maior</h3>
+    <div id="bigBoard"></div>
+</div>
+
+<script>
+    const playerInfo = document.getElementById("playerInfo");
+    const currentBoardInfo = document.getElementById("currentBoardInfo");
+    const smallBoardContainer = document.getElementById("smallBoardContainer");
+    const smallBoard = document.getElementById("smallBoard");
+    const bigBoardWrapper = document.getElementById("bigBoardWrapper");
+    const bigBoard = document.getElementById("bigBoard");
+
+    // sorteia quem começa
+    let currentPlayer = Math.random() < 0.5 ? "X" : "O";
+    playerInfo.textContent = `Primeiro jogador: ${currentPlayer}`;
+
+    // estado dos 9 tabuleiros
+    let boards = Array(9)
+        .fill(null)
+        .map(() => Array(9).fill(""));
+
+    let bigBoardState = Array(9).fill("");
+
+    // próximo tabuleiro obrigatório
+    let forcedBoard = -1;
+
+    // cria o visual do tabuleiro grande (invisível até o final)
+    for (let i = 0; i < 9; i++) {
+        const div = document.createElement("div");
+        div.classList.add("bigCell");
+        div.dataset.index = i;
+        bigBoard.appendChild(div);
+    }
+
+    // desenha o tabuleiro pequeno atual
+    function drawSmallBoard(boardIndex) {
+        currentBoardInfo.textContent = `Jogando no Tabuleiro: ${boardIndex + 1}`;
+        smallBoardContainer.style.display = "block";
+        smallBoard.innerHTML = "";
+
+        for (let i = 0; i < 9; i++) {
+            const cell = document.createElement("div");
+            cell.classList.add("cell");
+            cell.dataset.pos = i;
+            cell.textContent = boards[boardIndex][i];
+            cell.addEventListener("click", () => play(boardIndex, i));
+            smallBoard.appendChild(cell);
+        }
+    }
+
+    function checkWin(arr) {
+        const wins = [
+            [0,1,2],[3,4,5],[6,7,8],
+            [0,3,6],[1,4,7],[2,5,8],
+            [0,4,8],[2,4,6]
+        ];
+        for (const w of wins) {
+            const [a,b,c] = w;
+            if (arr[a] && arr[a] === arr[b] && arr[a] === arr[c]) {
+                return arr[a];
+            }
+        }
+        if (arr.every(v => v !== "")) return "T"; // velha
+        return null;
+    }
+
+    function checkBigWin() {
+        const wins = [
+            [0,1,2],[3,4,5],[6,7,8],
+            [0,3,6],[1,4,7],[2,5,8],
+            [0,4,8],[2,4,6]
+        ];
+
+        for (const w of wins) {
+            const [a,b,c] = w;
+            if (
+                bigBoardState[a] &&
+                bigBoardState[a] !== "T" &&
+                bigBoardState[a] === bigBoardState[b] &&
+                bigBoardState[a] === bigBoardState[c]
+            ) {
+                revealBigBoard();
+                alert(`Vitória de ${bigBoardState[a]} no tabuleiro maior!`);
+            }
+        }
+    }
+
+    function revealBigBoard() {
+        for (let i = 0; i < 9; i++) {
+            bigBoard.children[i].textContent = bigBoardState[i] || "-";
+        }
+        bigBoardWrapper.style.display = "block";
+    }
+
+    function play(boardIndex, cellIndex) {
+        if (boards[boardIndex][cellIndex] !== "") return;
+
+        // se há tabuleiro obrigatório, respeitar
+        if (forcedBoard !== -1 && boardIndex !== forcedBoard) return;
+
+        boards[boardIndex][cellIndex] = currentPlayer;
+
+        // verifica vitória deste tabuleiro
+        const result = checkWin(boards[boardIndex]);
+        if (result) {
+            bigBoardState[boardIndex] = result;
+        }
+
+        // define próximo tabuleiro obrigatório
+        forcedBoard = cellIndex;
+        if (bigBoardState[forcedBoard] !== "") {
+            forcedBoard = -1; // livre
+        }
+
+        // verifica vitória geral
+        checkBigWin();
+
+        // troca jogador
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        playerInfo.textContent = `Vez de: ${currentPlayer}`;
+
+        // desenha próximo tabuleiro
+        if (forcedBoard === -1) {
+            // escolha livre: jogador deve mentalmente lembrar qual tabuleiro está aberto
+            smallBoardContainer.style.display = "none";
+            currentBoardInfo.textContent = "Tabuleiro livre — escolha mental!";
+        } else {
+            drawSmallBoard(forcedBoard);
+        }
+    }
+
+    // primeira jogada: qualquer tabuleiro
+    currentBoardInfo.textContent = "Escolha livre para o jogador inicial!";
+    smallBoardContainer.style.display = "none";
+</script>
+</body>
+</html>
